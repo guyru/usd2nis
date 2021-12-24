@@ -2,6 +2,7 @@
 name = "usd2nis"
 version = "0.1.0"
 authors = ["Guy Rutenberg <guyrutenberg@gmail.com>"]
+license = "GPL-2.0-or-later"
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
