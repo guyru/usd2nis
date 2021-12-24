@@ -1,0 +1,14 @@
+[package]
+name = "usd2nis"
+version = "0.1.0"
+authors = ["Guy Rutenberg <guyrutenberg@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+chrono = "0.4.19"
+reqwest = {version = "0.11.4", features = ["rustls-tls-native-roots", "blocking"] }
+regex = "1.5"
+structopt = "0.3.22"
+anyhow = "1.0"
