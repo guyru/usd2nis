@@ -1,68 +1,73 @@
 use anyhow::{bail, Context, Result};
-use chrono::NaiveDate;
+use chrono::{Duration, NaiveDate};
+use clap::Parser;
 use regex::Regex;
-use std::io::Read;
-use structopt::StructOpt;
+use std::{io::Read, thread};
 
 /// Convert from USD to NIS on a specified date.
-#[derive(StructOpt, Debug)]
+#[derive(Debug, Parser)]
+#[command(author, version, about, long_about = None)]
 struct Cli {
     /// Conversion date
     date: String,
 
     /// USD amounts to convert
-    #[structopt(name = "USD")]
+    #[arg(name = "USD", required = true)]
     amount: Vec<f64>,
 }
 
 // type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
-fn parse_date(date: &String) -> chrono::ParseResult<NaiveDate> {
+fn parse_date(date: &str) -> chrono::ParseResult<NaiveDate> {
     let fmt = "%Y-%m-%d";
-    Ok(NaiveDate::parse_from_str(date, fmt)?)
+    NaiveDate::parse_from_str(date, fmt)
 }
 
 /// Gets the exchange date for a given date.
 ///
 /// Retrieves the exchange date for a given date. If no exchange date was published, search
 /// backwards up to 30 days.
-///
-/// # Examples
-/// ```
-/// ```
-/// ```
-/// ```
 fn get_exchange_rate(date: NaiveDate) -> Result<(f64, NaiveDate)> {
-    let max_date_retries = 30;
-    let mut xchg_date = date.clone();
+    let start_date = date - Duration::days(30);
 
-    let re = Regex::new(r"<RATE>(\d.\d+)</RATE>").unwrap();
+    let request_url = format!(
+        "https://edge.boi.gov.il/FusionEdgeServer/sdmx/v2/data/dataflow/BOI.STATISTICS/EXR/1.0/RER_USD_ILS?startperiod={}&endperiod={}&DATA_TYPE=OF00",
+        // DATA_TYPE=0F00 means the representative exchange rate
+        start_date.format("%Y-%m-%d"),
+        date.format("%Y-%m-%d")
+    );
 
-    for _ in 0..max_date_retries {
-        let request_url = format!(
-            "https://www.boi.org.il/currency.xml?rdate={}&curr=01",
-            xchg_date.format("%Y%m%d").to_string()
-        );
-        let mut res = reqwest::blocking::get(&request_url)
-            .with_context(|| format!("Failed to retrieve {}", &request_url))?;
-        let mut body = String::new();
-        res.read_to_string(&mut body)?;
+    // We match the last date available in the series
+    let re = Regex::new(
+        r#"<Obs TIME_PERIOD="(\d{4}-\d{2}-\d{2})" OBS_VALUE="(\d+\.\d+)"></Obs></Series>"#,
+    )
+    .unwrap();
 
-        let cap = re.captures(&body);
-        if cap.is_some() {
-            let cap = cap.unwrap();
-            return Ok((
-                cap.get(1).unwrap().as_str().parse::<f64>().unwrap(),
-                xchg_date,
-            ));
+    let mut res = 'req: {
+        for _ in 0..3 {
+            let result = reqwest::blocking::get(&request_url);
+            if result.is_ok() {
+                break 'req result;
+            }
+            thread::sleep(std::time::Duration::from_millis(500));
         }
-        xchg_date = xchg_date.pred();
+        reqwest::blocking::get(&request_url)
     }
+    .with_context(|| format!("Failed to retrieve {}", &request_url))?;
+    let mut body = String::new();
+    res.read_to_string(&mut body)?;
+
+    if let Some(cap) = re.captures(&body) {
+        return Ok((
+            cap.get(2).unwrap().as_str().parse::<f64>().unwrap(),
+            NaiveDate::parse_from_str(cap.get(1).unwrap().as_str(), "%Y-%m-%d").unwrap(),
+        ));
+    };
     bail!(format!("No conversion rate found for date {}", date))
 }
 
 fn main() -> Result<()> {
-    let opt = Cli::from_args();
+    let opt = Cli::parse();
 
     let date = parse_date(&opt.date)?;
     let (rate, xchg_date) = get_exchange_rate(date)?;
@@ -70,9 +75,15 @@ fn main() -> Result<()> {
     for amount in opt.amount {
         print!(" {:.2}", rate * amount);
     }
-    println!("");
+    println!();
 
     Ok(())
+}
+
+#[test]
+fn verify_app() {
+    use clap::CommandFactory;
+    Cli::command().debug_assert();
 }
 
 #[cfg(test)]
@@ -81,22 +92,22 @@ mod tests {
 
     #[test]
     fn exchange_rate_weekday() -> Result<()> {
-        let (rate, date) = get_exchange_rate(NaiveDate::from_ymd(2021, 12, 20))?;
+        let (rate, date) = get_exchange_rate(NaiveDate::from_ymd_opt(2021, 12, 20).unwrap())?;
         assert_eq!(rate, 3.152);
-        assert_eq!(date, NaiveDate::from_ymd(2021, 12, 20));
+        assert_eq!(date, NaiveDate::from_ymd_opt(2021, 12, 20).unwrap());
         Ok(())
     }
 
     #[test]
     fn exchange_rate_sunday() -> Result<()> {
-        let (rate, date) = get_exchange_rate(NaiveDate::from_ymd(2021, 12, 19))?;
+        let (rate, date) = get_exchange_rate(NaiveDate::from_ymd_opt(2021, 12, 19).unwrap())?;
         assert_eq!(rate, 3.115);
-        assert_eq!(date, NaiveDate::from_ymd(2021, 12, 17));
+        assert_eq!(date, NaiveDate::from_ymd_opt(2021, 12, 17).unwrap());
         Ok(())
     }
 
     #[test]
     fn exchange_rate_distant_future() {
-        assert!(get_exchange_rate(NaiveDate::from_ymd(3000, 01, 01)).is_err())
+        assert!(get_exchange_rate(NaiveDate::from_ymd_opt(3000, 01, 01).unwrap()).is_err())
     }
 }

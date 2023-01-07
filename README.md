@@ -8,6 +8,8 @@ Small utility to retrieve USD to NIS/ILS exchange rate.
 $ cargo install --git https://github.com/guyru/usd2nis
 ```
 
+Minimum supported Rust version: 1.65.
+
 ## Usage
 
 ```

@@ -1,15 +1,17 @@
 [package]
 name = "usd2nis"
-version = "0.1.0"
+description = "Small utility to retrieve USD to NIS/ILS exchange rate."
+version = "0.2.0"
 authors = ["Guy Rutenberg <guyrutenberg@gmail.com>"]
 license = "GPL-2.0-or-later"
 edition = "2018"
+rust-version = "1.65"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-chrono = "0.4.19"
-reqwest = {version = "0.11.4", features = ["rustls-tls-native-roots", "blocking"] }
-regex = "1.5"
-structopt = "0.3.22"
 anyhow = "1.0"
+chrono = "0.4.19"
+clap = {version = "4.0.32", features = ["derive"]}
+regex = "1.5"
+reqwest = {version = "0.11.4", features = ["rustls-tls-native-roots", "blocking"] }
