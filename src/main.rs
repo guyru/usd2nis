@@ -31,15 +31,15 @@ fn get_exchange_rate(date: NaiveDate) -> Result<(f64, NaiveDate)> {
     let start_date = date - Duration::days(30);
 
     let request_url = format!(
-        "https://edge.boi.gov.il/FusionEdgeServer/sdmx/v2/data/dataflow/BOI.STATISTICS/EXR/1.0/RER_USD_ILS?startperiod={}&endperiod={}&DATA_TYPE=OF00",
-        // DATA_TYPE=0F00 means the representative exchange rate
+        // Query url constructed using https://edge.boi.gov.il/FusionDataBrowser/
+        "https://edge.boi.gov.il/FusionEdgeServer/sdmx/v2/data/dataflow/BOI.STATISTICS/EXR/1.0/RER_USD_ILS.D.USD.ILS.ILS.OF00?c%5BTIME_PERIOD%5D=ge:{}+le:{}&locale=en",
         start_date.format("%Y-%m-%d"),
         date.format("%Y-%m-%d")
     );
 
     // We match the last date available in the series
     let re = Regex::new(
-        r#"<Obs TIME_PERIOD="(\d{4}-\d{2}-\d{2})" OBS_VALUE="(\d+\.\d+)"></Obs></Series>"#,
+        r#"<Obs TIME_PERIOD="(\d{4}-\d{2}-\d{2})" OBS_VALUE="(\d+\.\d+)"[^>]*></Obs></Series>"#,
     )
     .unwrap();
 

@@ -1,7 +1,7 @@
 [package]
 name = "usd2nis"
 description = "Small utility to retrieve USD to NIS/ILS exchange rate."
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Guy Rutenberg <guyrutenberg@gmail.com>"]
 license = "GPL-2.0-or-later"
 edition = "2018"
